@@ -37,7 +37,7 @@ SDL_Color getColor(int iteration, int max_iteration) {
 // Based on pseudocode from Wikipedia.
 // Reference: https://en.wikipedia.org/wiki/Mandelbrot_set
 void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGHT,
-                      float centerX, float centerY, float zoom) {
+                      float centerX, float centerY, float zoom, int maxIterations) {
     float aspectRatio = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
     float rangeY = 4.0f / zoom;
     float rangeX = rangeY * aspectRatio;
@@ -46,8 +46,6 @@ void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGH
     float maxReal = centerX + rangeX / 2;
     float minImaginary = centerY - rangeY / 2;
     float maxImaginary = centerY + rangeY / 2;
-
-    int maxIterations = 1000;
 
     for (int px = 0; px < SCREEN_WIDTH; px++) {
         for (int py = 0; py < SCREEN_HEIGHT; py++) {
@@ -89,6 +87,8 @@ int main(int argc, char* argv[]) {
     float centerY = 0.0f;
     float zoom = 1.0f;
     float zoomSpeed = 1.01f;
+    float moveSpeed = 0.1f;
+    int maxIterations = 1000;
 
     bool quit = false;
     SDL_Event e;
@@ -100,17 +100,42 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
+            } else if (e.type == SDL_KEYDOWN) {
+                switch (e.key.keysym.sym) {
+                    case SDLK_UP: // Move up
+                        centerY -= moveSpeed / zoom;
+                        break;
+                    case SDLK_DOWN: // Move down
+                        centerY += moveSpeed / zoom;
+                        break;
+                    case SDLK_LEFT: // Move left
+                        centerX -= moveSpeed / zoom;
+                        break;
+                    case SDLK_RIGHT: // Move right
+                        centerX += moveSpeed / zoom;
+                        break;
+                    case SDLK_z: // Zoom in
+                        zoom *= zoomSpeed;
+                        break;
+                    case SDLK_x: // Zoom out
+                        zoom /= zoomSpeed;
+                        break;
+                    case SDLK_i: // Increase max iterations, means more detail
+                        maxIterations += 100;
+                        break;
+                    case SDLK_k: // Decrease max iterations, means less detail
+                        maxIterations = std::max(100, maxIterations - 100);
+                        break;
+                }
             }
         }
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        renderMandelbrot(renderer, SCREEN_WIDTH, SCREEN_HEIGHT, centerX, centerY, zoom);
+        renderMandelbrot(renderer, SCREEN_WIDTH, SCREEN_HEIGHT, centerX, centerY, zoom, maxIterations);
 
         SDL_RenderPresent(renderer);
-
-        zoom *= zoomSpeed;
 
         // Calculate FPS
         frameCount++;
