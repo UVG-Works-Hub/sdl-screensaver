@@ -95,14 +95,23 @@ inline __m256 mandelbrot_simd(__m256 x0, __m256 y0, int maxIterations) {
 
 void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
                       float centerX, float centerY, float zoom, int maxIterations, int SCREEN_WIDTH, int SCREEN_HEIGHT) {
+    // Pre-calculate constants to reduce computations in the inner loops
     float aspectRatio = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
     float rangeY = 4.0f / zoom;
     float rangeX = rangeY * aspectRatio;
-
     float minReal = centerX - rangeX / 2;
     float maxReal = centerX + rangeX / 2;
     float minImaginary = centerY - rangeY / 2;
     float maxImaginary = centerY + rangeY / 2;
+
+    // SIMD vector constants
+    __m256 v_minReal = _mm256_set1_ps(minReal);
+    __m256 v_factor = _mm256_set1_ps((maxReal - minReal) / (SCREEN_WIDTH - 1));
+    __m256 v_centerX = _mm256_set1_ps(centerX);
+    __m256 v_centerY = _mm256_set1_ps(centerY);
+    __m256 v_rangeX_half = _mm256_set1_ps(rangeX / 2);
+    __m256 v_four = _mm256_set1_ps(4.0f);
+    __m256 v_maxIterations = _mm256_set1_ps(static_cast<float>(maxIterations));
 
     #pragma omp parallel for schedule(dynamic, 1)
     for (int py = 0; py < SCREEN_HEIGHT; py++) {
