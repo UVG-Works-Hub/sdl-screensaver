@@ -5,6 +5,7 @@
 #include <omp.h>
 #include <vector>
 #include <memory>
+#include <immintrin.h>
 
 SDL_Color getColor(float iteration, int max_iteration) {
     if (iteration >= max_iteration) return {0, 0, 0, 255};  // Black for points inside the set
@@ -58,6 +59,30 @@ float mapValue(float value, float fromLow, float fromHigh, float toLow, float to
     return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
 }
 
+inline __m256 mandelbrot_simd(__m256 x0, __m256 y0, int maxIterations) {
+    __m256 x = _mm256_setzero_ps();
+    __m256 y = _mm256_setzero_ps();
+    __m256 x2 = _mm256_setzero_ps();
+    __m256 y2 = _mm256_setzero_ps();
+    __m256 iterations = _mm256_setzero_ps();
+    __m256 four = _mm256_set1_ps(4.0f);
+    __m256 one = _mm256_set1_ps(1.0f);
+    __m256 mask = _mm256_setzero_ps();
+
+    for (int i = 0; i < maxIterations; ++i) {
+        mask = _mm256_cmp_ps(_mm256_add_ps(x2, y2), four, _CMP_LE_OS);
+        if (_mm256_movemask_ps(mask) == 0) break;
+
+        y = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_set1_ps(2.0f), x), y), y0);
+        x = _mm256_add_ps(_mm256_sub_ps(x2, y2), x0);
+        x2 = _mm256_mul_ps(x, x);
+        y2 = _mm256_mul_ps(y, y);
+        iterations = _mm256_add_ps(iterations, _mm256_and_ps(one, mask));
+    }
+
+    return iterations;
+}
+
 void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
                       float centerX, float centerY, float zoom, int maxIterations, int SCREEN_WIDTH, int SCREEN_HEIGHT) {
     float aspectRatio = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
@@ -71,35 +96,44 @@ void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
 
     #pragma omp parallel for schedule(dynamic, 1)
     for (int py = 0; py < SCREEN_HEIGHT; py++) {
-        for (int px = 0; px < SCREEN_WIDTH; px++) {
-            float x0 = mapValue(px, 0, SCREEN_WIDTH - 1, minReal, maxReal);
-            float y0 = mapValue(py, 0, SCREEN_HEIGHT - 1, minImaginary, maxImaginary);
-            float x = 0.0f;
-            float y = 0.0f;
-            float x2 = 0.0f, y2 = 0.0f;
-            float iteration = 0.0f;
+        float y0 = mapValue(py, 0, SCREEN_HEIGHT - 1, minImaginary, maxImaginary);
 
-            while (x2 + y2 <= 4 && iteration < maxIterations) {
-                y = 2 * x * y + y0;
-                x = x2 - y2 + x0;
-                x2 = x * x;
-                y2 = y * y;
-                iteration += 1.0f;
+        for (int px = 0; px < SCREEN_WIDTH; px += 8) {
+            __m256 x0 = _mm256_setr_ps(
+                mapValue(px, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 1, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 2, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 3, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 4, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 5, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 6, 0, SCREEN_WIDTH - 1, minReal, maxReal),
+                mapValue(px + 7, 0, SCREEN_WIDTH - 1, minReal, maxReal)
+            );
+            __m256 y0_vec = _mm256_set1_ps(y0);
+
+            __m256 iterations = mandelbrot_simd(x0, y0_vec, maxIterations);
+
+            float iter_array[8];
+            _mm256_storeu_ps(iter_array, iterations);
+
+            for (int i = 0; i < 8 && px + i < SCREEN_WIDTH; ++i) {
+                float iteration = iter_array[i];
+
+                if (iteration < maxIterations) {
+                    iteration = iteration + 1 - log(log(2.0f)) / log(2.0f);
+                }
+
+                SDL_Color color = getColor(iteration, maxIterations);
+
+                float x0_scalar = mapValue(px + i, 0, SCREEN_WIDTH - 1, minReal, maxReal);
+                float distanceFromCenter = sqrt((x0_scalar - centerX) * (x0_scalar - centerX) + (y0 - centerY) * (y0 - centerY));
+                float gradientFactor = 1.0f - std::min(distanceFromCenter / (rangeX / 2), 1.0f);
+                color.r = static_cast<Uint8>(color.r * gradientFactor);
+                color.g = static_cast<Uint8>(color.g * gradientFactor);
+                color.b = static_cast<Uint8>(std::min(255.0f, color.b * gradientFactor + 40));
+
+                imageBuffer.at(px + i, py) = {color.r, color.g, color.b, color.a};
             }
-
-            if (iteration < maxIterations) {
-                iteration = iteration + 1 - log(log(sqrt(x2 + y2))) / log(2.0);
-            }
-
-            SDL_Color color = getColor(iteration, maxIterations);
-
-            float distanceFromCenter = sqrt((x0 - centerX) * (x0 - centerX) + (y0 - centerY) * (y0 - centerY));
-            float gradientFactor = 1.0f - std::min(distanceFromCenter / (rangeX / 2), 1.0f);
-            color.r = static_cast<Uint8>(color.r * gradientFactor);
-            color.g = static_cast<Uint8>(color.g * gradientFactor);
-            color.b = static_cast<Uint8>(std::min(255.0f, color.b * gradientFactor + 40));
-
-            imageBuffer.at(px, py) = {color.r, color.g, color.b, color.a};
         }
     }
 
