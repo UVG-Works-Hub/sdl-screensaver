@@ -215,9 +215,6 @@ int main() {
     int currentBuffer = 0;
     bool bufferReady = false;
 
-    int numThreads = omp_get_max_threads();
-    omp_set_num_threads(numThreads);
-
     // Optimization: Pre-allocate textures
     std::vector<SDL_Texture*> textures;
     for (int i = 0; i < NUM_BUFFERS; ++i) {
@@ -300,47 +297,17 @@ int main() {
             }
         }
 
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        auto start = std::chrono::high_resolution_clock::now();
-        renderMandelbrot(renderer, imageBuffer, centerX, centerY, zoom, maxIterations, SCREEN_WIDTH, SCREEN_HEIGHT);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-
-        SDL_RenderPresent(renderer);
-
-        // Calculate FPS
-        frameCount++;
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float> elapsedTime = currentTime - lastTime;
-
-        if (elapsedTime.count() >= 1.0f) {
-            float fps = frameCount / elapsedTime.count();
-            frameCount = 0;
-            lastTime = currentTime;
-
-            std::string windowTitle = "fps: " + std::to_string(fps) +
-                                      " - z: " + std::to_string(zoom) +
-                                      " - y: " + std::to_string(centerY) +
-                                      " - x: " + std::to_string(centerX) +
-                                      " - mi: " + std::to_string(maxIterations) +
-                                      " - threads: " + std::to_string(numThreads) +
-                                      " - render time: " + std::to_string(elapsed.count()) + "s";
-            SDL_SetWindowTitle(window, windowTitle.c_str());
-        }
-
-        // Handle thread count changes
-        const Uint8* state = SDL_GetKeyboardState(NULL);
-        for (int i = SDL_SCANCODE_1; i <= SDL_SCANCODE_8; ++i) {
-            if (state[i]) {
-                numThreads = i - SDL_SCANCODE_1 + 1;
-                omp_set_num_threads(numThreads);
-                break;
-            }
+        // Optimization: Yield to other threads if no new frame is ready
+        if (!isReady) {
+            std::this_thread::yield();
         }
     }
 
+    // Clean up
+    renderThread.join();
+    for (auto texture : textures) {
+        SDL_DestroyTexture(texture);
+    }
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
