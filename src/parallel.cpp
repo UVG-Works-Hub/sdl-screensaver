@@ -4,10 +4,7 @@
 #include <chrono>
 #include <omp.h>
 #include <vector>
-
-float mapValue(float value, float fromLow, float fromHigh, float toLow, float toHigh) {
-    return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
-}
+#include <memory>
 
 SDL_Color getColor(float iteration, int max_iteration) {
     if (iteration >= max_iteration) return {0, 0, 0, 255};  // Black for points inside the set
@@ -25,8 +22,44 @@ SDL_Color getColor(float iteration, int max_iteration) {
     return {r, g, b, 255};
 }
 
-void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGHT,
-                      float centerX, float centerY, float zoom, int maxIterations) {
+struct Pixel {
+    Uint8 r, g, b, a;
+};
+
+class ImageBuffer {
+private:
+    std::unique_ptr<Pixel[]> buffer;
+    int width, height;
+
+public:
+    ImageBuffer(int w, int h) : width(w), height(h) {
+        buffer = std::make_unique<Pixel[]>(w * h);
+    }
+
+    Pixel& at(int x, int y) {
+        return buffer[y * width + x];
+    }
+
+    const Pixel& at(int x, int y) const {
+        return buffer[y * width + x];
+    }
+
+    int getWidth() const { return width; }
+    int getHeight() const { return height; }
+
+    // Add this new method to get a pointer to the buffer data
+    const void* getBufferData() const {
+        return buffer.get();
+    }
+};
+
+
+float mapValue(float value, float fromLow, float fromHigh, float toLow, float toHigh) {
+    return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
+}
+
+void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
+                      float centerX, float centerY, float zoom, int maxIterations, int SCREEN_WIDTH, int SCREEN_HEIGHT) {
     float aspectRatio = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
     float rangeY = 4.0f / zoom;
     float rangeX = rangeY * aspectRatio;
@@ -36,52 +69,45 @@ void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGH
     float minImaginary = centerY - rangeY / 2;
     float maxImaginary = centerY + rangeY / 2;
 
-    #pragma omp parallel
-    {
-        std::vector<SDL_Color> lineColors(SCREEN_WIDTH);
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (int py = 0; py < SCREEN_HEIGHT; py++) {
+        for (int px = 0; px < SCREEN_WIDTH; px++) {
+            float x0 = mapValue(px, 0, SCREEN_WIDTH - 1, minReal, maxReal);
+            float y0 = mapValue(py, 0, SCREEN_HEIGHT - 1, minImaginary, maxImaginary);
+            float x = 0.0f;
+            float y = 0.0f;
+            float x2 = 0.0f, y2 = 0.0f;
+            float iteration = 0.0f;
 
-        #pragma omp for schedule(dynamic, 1)
-        for (int py = 0; py < SCREEN_HEIGHT; py++) {
-            for (int px = 0; px < SCREEN_WIDTH; px++) {
-                float x0 = mapValue(px, 0, SCREEN_WIDTH - 1, minReal, maxReal);
-                float y0 = mapValue(py, 0, SCREEN_HEIGHT - 1, minImaginary, maxImaginary);
-                float x = 0.0f;
-                float y = 0.0f;
-                float iteration = 0.0f;
-                float zn2 = 0.0f;
-
-                while (zn2 <= 4 && iteration < maxIterations) {
-                    float xtemp = x*x - y*y + x0;
-                    y = 2*x*y + y0;
-                    x = xtemp;
-                    zn2 = x*x + y*y;
-                    iteration += 1.0f;
-                }
-
-                if (iteration < maxIterations) {
-                    iteration = iteration + 1 - log(log(sqrt(zn2))) / log(2.0);
-                }
-
-                SDL_Color color = getColor(iteration, maxIterations);
-
-                float distanceFromCenter = sqrt((x0 - centerX) * (x0 - centerX) + (y0 - centerY) * (y0 - centerY));
-                float gradientFactor = 1.0f - std::min(distanceFromCenter / (rangeX / 2), 1.0f);
-                color.r = static_cast<Uint8>(color.r * gradientFactor);
-                color.g = static_cast<Uint8>(color.g * gradientFactor);
-                color.b = static_cast<Uint8>(std::min(255.0f, color.b * gradientFactor + 40));
-
-                lineColors[px] = color;
+            while (x2 + y2 <= 4 && iteration < maxIterations) {
+                y = 2 * x * y + y0;
+                x = x2 - y2 + x0;
+                x2 = x * x;
+                y2 = y * y;
+                iteration += 1.0f;
             }
 
-            #pragma omp critical
-            {
-                for (int px = 0; px < SCREEN_WIDTH; px++) {
-                    SDL_SetRenderDrawColor(renderer, lineColors[px].r, lineColors[px].g, lineColors[px].b, lineColors[px].a);
-                    SDL_RenderDrawPoint(renderer, px, py);
-                }
+            if (iteration < maxIterations) {
+                iteration = iteration + 1 - log(log(sqrt(x2 + y2))) / log(2.0);
             }
+
+            SDL_Color color = getColor(iteration, maxIterations);
+
+            float distanceFromCenter = sqrt((x0 - centerX) * (x0 - centerX) + (y0 - centerY) * (y0 - centerY));
+            float gradientFactor = 1.0f - std::min(distanceFromCenter / (rangeX / 2), 1.0f);
+            color.r = static_cast<Uint8>(color.r * gradientFactor);
+            color.g = static_cast<Uint8>(color.g * gradientFactor);
+            color.b = static_cast<Uint8>(std::min(255.0f, color.b * gradientFactor + 40));
+
+            imageBuffer.at(px, py) = {color.r, color.g, color.b, color.a};
         }
     }
+
+    // Create texture and update it with the image buffer data
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, imageBuffer.getWidth(), imageBuffer.getHeight());
+    SDL_UpdateTexture(texture, NULL, imageBuffer.getBufferData(), imageBuffer.getWidth() * sizeof(Pixel));
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_DestroyTexture(texture);
 }
 
 int main() {
@@ -110,6 +136,8 @@ int main() {
 
     int numThreads = omp_get_max_threads();
     omp_set_num_threads(numThreads);
+
+    ImageBuffer imageBuffer(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
@@ -149,7 +177,7 @@ int main() {
         SDL_RenderClear(renderer);
 
         auto start = std::chrono::high_resolution_clock::now();
-        renderMandelbrot(renderer, SCREEN_WIDTH, SCREEN_HEIGHT, centerX, centerY, zoom, maxIterations);
+        renderMandelbrot(renderer, imageBuffer, centerX, centerY, zoom, maxIterations, SCREEN_WIDTH, SCREEN_HEIGHT);
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
 
