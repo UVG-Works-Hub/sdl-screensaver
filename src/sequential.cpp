@@ -73,7 +73,7 @@ void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGH
     }
 }
 
-int main(int argc, char* argv[]) {
+int main() {
     SDL_Init(SDL_INIT_VIDEO);
 
     const int SCREEN_WIDTH = 800;
@@ -160,3 +160,6 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
+// Reference: https://scala-blitz.github.io/home/documentation/examples//mandelbrot.html
+// Reference: https://www3.nd.edu/~dthain/courses/cse30341/spring2020/project3/

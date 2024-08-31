@@ -1,6 +1,9 @@
 CXX := g++
-CXXFLAGS := -Wall -Wextra -g -std=c++11
-LDFLAGS := -lSDL2 -lm -fopenmp
+COMMON_FLAGS := -Wall -Wextra -std=c++11 -O3
+SEQUENTIAL_FLAGS := $(COMMON_FLAGS) -g
+PARALLEL_FLAGS := $(COMMON_FLAGS) -g -fopenmp
+SEQUENTIAL_LDFLAGS := -lSDL2 -lm
+PARALLEL_LDFLAGS := -lSDL2 -lm -fopenmp
 
 # Directories
 SRC_DIR := src
@@ -23,10 +26,10 @@ sequential: $(SEQUENTIAL_EXEC)
 parallel: $(PARALLEL_EXEC)
 
 $(SEQUENTIAL_EXEC): $(SEQUENTIAL_SRC) | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
+	$(CXX) $(SEQUENTIAL_FLAGS) $< -o $@ $(SEQUENTIAL_LDFLAGS)
 
 $(PARALLEL_EXEC): $(PARALLEL_SRC) | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
+	$(CXX) $(PARALLEL_FLAGS) $< -o $@ $(PARALLEL_LDFLAGS)
 
 $(BIN_DIR):
 	mkdir -p $@
