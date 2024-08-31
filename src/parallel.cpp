@@ -218,6 +218,23 @@ int main() {
     int numThreads = omp_get_max_threads();
     omp_set_num_threads(numThreads);
 
+    // Optimization: Pre-allocate textures
+    std::vector<SDL_Texture*> textures;
+    for (int i = 0; i < NUM_BUFFERS; ++i) {
+        textures.push_back(SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT));
+    }
+
+    // Optimization: Use a separate thread for rendering
+    std::thread renderThread([&]() {
+        while (!quit) {
+            int bufferToRender = (currentBuffer + 1) % NUM_BUFFERS;
+            renderMandelbrot(renderer, imageBufffers[bufferToRender], centerX, centerY, zoom, maxIterations, SCREEN_WIDTH, SCREEN_HEIGHT);
+            
+            #pragma omp atomic write
+            bufferReady = true;
+        }
+    });
+
     ImageBuffer imageBuffer(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     while (!quit) {
