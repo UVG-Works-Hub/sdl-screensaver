@@ -33,18 +33,22 @@ private:
     int width, height;
 
 public:
+    // Add a constructor to initialize the buffer with the given width and height
     ImageBuffer(int w, int h) : width(w), height(h) {
         buffer = std::make_unique<Pixel[]>(w * h);
     }
 
+    // Add this new method to access the buffer data
     Pixel& at(int x, int y) {
         return buffer[y * width + x];
     }
 
+    // Add this new method to access the buffer data
     const Pixel& at(int x, int y) const {
         return buffer[y * width + x];
     }
 
+    // Add these new methods to get the width and height
     int getWidth() const { return width; }
     int getHeight() const { return height; }
 
@@ -60,13 +64,15 @@ float mapValue(float value, float fromLow, float fromHigh, float toLow, float to
 }
 
 inline __m256 mandelbrot_simd(__m256 x0, __m256 y0, int maxIterations) {
+    // Optimization: Initialize all vectors to zero
     __m256 x = _mm256_setzero_ps();
     __m256 y = _mm256_setzero_ps();
     __m256 x2 = _mm256_setzero_ps();
     __m256 y2 = _mm256_setzero_ps();
     __m256 iterations = _mm256_setzero_ps();
+    // Optimization: Pre-load 4.0f and 2.0f to reduce memory access
     __m256 four = _mm256_set1_ps(4.0f);
-    __m256 two = _mm256_set1_ps(2.0f);  // Optimization: Pre-load 2.0f to reduce memory access
+    __m256 two = _mm256_set1_ps(2.0f);
     __m256 one = _mm256_set1_ps(1.0f);
     // Optimization: Initialize mask with all bits set to 1
     __m256 mask = _mm256_castsi256_ps(_mm256_set1_epi32(-1));
@@ -177,9 +183,11 @@ int main() {
     // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO);
 
+    // Create window and renderer
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
 
+    // Optimization: Use SDL_WINDOW_SHOWN flag for immediate display
     SDL_Window* window = SDL_CreateWindow("Mandelbrot Zoom", SDL_WINDOWPOS_UNDEFINED,
                                           SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
                                           SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -232,6 +240,7 @@ int main() {
         }
     });
 
+    // Main loop for rendering screen saver
     while (!quit) {
         // Handle events
         while (SDL_PollEvent(&e) != 0) {
@@ -308,6 +317,8 @@ int main() {
     for (auto texture : textures) {
         SDL_DestroyTexture(texture);
     }
+
+    // Destroy SDL objects
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
