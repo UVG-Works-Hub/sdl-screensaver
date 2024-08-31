@@ -66,18 +66,28 @@ inline __m256 mandelbrot_simd(__m256 x0, __m256 y0, int maxIterations) {
     __m256 y2 = _mm256_setzero_ps();
     __m256 iterations = _mm256_setzero_ps();
     __m256 four = _mm256_set1_ps(4.0f);
+    __m256 two = _mm256_set1_ps(2.0f);  // Optimization: Pre-load 2.0f to reduce memory access
     __m256 one = _mm256_set1_ps(1.0f);
-    __m256 mask = _mm256_setzero_ps();
+    // Optimization: Initialize mask with all bits set to 1
+    __m256 mask = _mm256_castsi256_ps(_mm256_set1_epi32(-1));
 
     for (int i = 0; i < maxIterations; ++i) {
-        mask = _mm256_cmp_ps(_mm256_add_ps(x2, y2), four, _CMP_LE_OS);
-        if (_mm256_movemask_ps(mask) == 0) break;
+        // Optimization: Simplified calculations
+        __m256 xy = _mm256_mul_ps(x, y);
+        __m256 x_new = _mm256_add_ps(_mm256_sub_ps(x2, y2), x0);
+        y = _mm256_add_ps(_mm256_mul_ps(two, xy), y0);
+        x = x_new;
 
-        y = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_set1_ps(2.0f), x), y), y0);
-        x = _mm256_add_ps(_mm256_sub_ps(x2, y2), x0);
         x2 = _mm256_mul_ps(x, x);
         y2 = _mm256_mul_ps(y, y);
+
+        // Optimization: Moved mask update after x2 and y2 calculations
+        __m256 cmp = _mm256_cmp_ps(_mm256_add_ps(x2, y2), four, _CMP_LE_OS);
+        mask = _mm256_and_ps(mask, cmp);
         iterations = _mm256_add_ps(iterations, _mm256_and_ps(one, mask));
+
+        // Optimization: Early exit check moved to end of loop
+        if (_mm256_movemask_ps(mask) == 0) break;
     }
 
     return iterations;
