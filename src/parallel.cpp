@@ -235,39 +235,68 @@ int main() {
         }
     });
 
-    ImageBuffer imageBuffer(SCREEN_WIDTH, SCREEN_HEIGHT);
-
     while (!quit) {
+        // Handle events
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             } else if (e.type == SDL_KEYDOWN) {
-                switch (e.key.keysym.sym) {
-                    case SDLK_UP: // Move up
-                        centerY -= moveSpeed / zoom;
-                        break;
-                    case SDLK_DOWN: // Move down
-                        centerY += moveSpeed / zoom;
-                        break;
-                    case SDLK_LEFT: // Move left
-                        centerX -= moveSpeed / zoom;
-                        break;
-                    case SDLK_RIGHT: // Move right
-                        centerX += moveSpeed / zoom;
-                        break;
-                    case SDLK_z: // Zoom in
-                        zoom *= zoomSpeed;
-                        break;
-                    case SDLK_x: // Zoom out
-                        zoom /= zoomSpeed;
-                        break;
-                    case SDLK_i: // Increase max iterations, means more detail
-                        maxIterations += 100;
-                        break;
-                    case SDLK_k: // Decrease max iterations, means less detail
-                        maxIterations = std::max(100, maxIterations - 100);
-                        break;
+                // Optimization: Use OpenMP tasks for input handling
+                #pragma omp task
+                {
+                    switch (e.key.keysym.sym) {
+                        case SDLK_UP:    centerY -= moveSpeed / zoom; break;
+                        case SDLK_DOWN:  centerY += moveSpeed / zoom; break;
+                        case SDLK_LEFT:  centerX -= moveSpeed / zoom; break;
+                        case SDLK_RIGHT: centerX += moveSpeed / zoom; break;
+                        case SDLK_z:     zoom *= zoomSpeed; break;
+                        case SDLK_x:     zoom /= zoomSpeed; break;
+                        case SDLK_i:     maxIterations += 100; break;
+                        case SDLK_k:     maxIterations = std::max(100, maxIterations - 100); break;
+                    }
                 }
+            }
+        }
+
+        // Check if a new buffer is ready
+        bool isReady = false;
+        #pragma omp atomic read
+        isReady = bufferReady;
+
+        if (isReady) {
+            // Update texture with the new buffer
+            SDL_UpdateTexture(textures[currentBuffer], NULL, imageBuffers[currentBuffer].getBufferData(), SCREEN_WIDTH * sizeof(Pixel));
+
+            // Clear screen and render
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            SDL_RenderCopy(renderer, textures[currentBuffer], NULL, NULL);
+            SDL_RenderPresent(renderer);
+
+            // Switch buffers
+            currentBuffer = (currentBuffer + 1) % NUM_BUFFERS;
+            
+            #pragma omp atomic write
+            bufferReady = false;
+
+            // Calculate FPS
+            frameCount++;
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float> elapsedTime = currentTime - lastTime;
+
+            if (elapsedTime.count() >= 1.0f) {
+                fps = frameCount / elapsedTime.count();
+                frameCount = 0;
+                lastTime = currentTime;
+
+                // Update window title with stats
+                std::string windowTitle = "fps: " + std::to_string(fps) +
+                                          " - z: " + std::to_string(zoom) +
+                                          " - y: " + std::to_string(centerY) +
+                                          " - x: " + std::to_string(centerX) +
+                                          " - mi: " + std::to_string(maxIterations) +
+                                          " - threads: " + std::to_string(numThreads);
+                SDL_SetWindowTitle(window, windowTitle.c_str());
             }
         }
 
