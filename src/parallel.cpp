@@ -113,40 +113,50 @@ void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
     __m256 v_four = _mm256_set1_ps(4.0f);
     __m256 v_maxIterations = _mm256_set1_ps(static_cast<float>(maxIterations));
 
+    // Optimization: Use a larger chunk size for better cache utilization
+    const int CHUNK_SIZE = 32;
+
+    // Parallel processing of rows
     #pragma omp parallel for schedule(dynamic, 1)
     for (int py = 0; py < SCREEN_HEIGHT; py++) {
         float y0 = mapValue(py, 0, SCREEN_HEIGHT - 1, minImaginary, maxImaginary);
+        __m256 v_y0 = _mm256_set1_ps(y0);
 
-        for (int px = 0; px < SCREEN_WIDTH; px += 8) {
-            __m256 x0 = _mm256_setr_ps(
-                mapValue(px, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 1, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 2, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 3, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 4, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 5, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 6, 0, SCREEN_WIDTH - 1, minReal, maxReal),
-                mapValue(px + 7, 0, SCREEN_WIDTH - 1, minReal, maxReal)
-            );
-            __m256 y0_vec = _mm256_set1_ps(y0);
+        // Process pixels in chunks for better vectorization
+        for (int px = 0; px < SCREEN_WIDTH; px += CHUNK_SIZE) {
+            __m256 iterations[CHUNK_SIZE / 8];
+            __m256 x[CHUNK_SIZE / 8];
 
-            __m256 iterations = mandelbrot_simd(x0, y0_vec, maxIterations);
+            // Calculate x0 for the chunk
+            for (int i = 0; i < CHUNK_SIZE / 8; ++i) {
+                __m256 v_px = _mm256_set_ps(px + i*8 + 7, px + i*8 + 6, px + i*8 + 5, px + i*8 + 4,
+                                            px + i*8 + 3, px + i*8 + 2, px + i*8 + 1, px + i*8);
+                x[i] = _mm256_add_ps(v_minReal, _mm256_mul_ps(v_px, v_factor));
+            }
 
-            float iter_array[8];
-            _mm256_storeu_ps(iter_array, iterations);
+            // Compute Mandelbrot iterations for the chunk
+            for (int i = 0; i < CHUNK_SIZE / 8; ++i) {
+                iterations[i] = mandelbrot_simd(x[i], v_y0, maxIterations);
+            }
 
-            for (int i = 0; i < 8 && px + i < SCREEN_WIDTH; ++i) {
-                float iteration = iter_array[i];
+            // Process the results for the chunk
+            for (int i = 0; i < CHUNK_SIZE && px + i < SCREEN_WIDTH; ++i) {
+                float iteration = reinterpret_cast<float*>(&iterations[i / 8])[i % 8];
 
+                // Smooth coloring
                 if (iteration < maxIterations) {
-                    iteration = iteration + 1 - log(log(2.0f)) / log(2.0f);
+                    iteration = iteration + 1 - log2f(log2f(x[i / 8][i % 8] * x[i / 8][i % 8] + y0 * y0));
                 }
 
                 SDL_Color color = getColor(iteration, maxIterations);
 
-                float x0_scalar = mapValue(px + i, 0, SCREEN_WIDTH - 1, minReal, maxReal);
-                float distanceFromCenter = sqrt((x0_scalar - centerX) * (x0_scalar - centerX) + (y0 - centerY) * (y0 - centerY));
-                float gradientFactor = 1.0f - std::min(distanceFromCenter / (rangeX / 2), 1.0f);
+                // Optimized gradient calculation
+                float dx = x[i / 8][i % 8] - centerX;
+                float dy = y0 - centerY;
+                float distanceSquared = dx * dx + dy * dy;
+                float gradientFactor = 1.0f - std::min(sqrtf(distanceSquared) / (rangeX / 2), 1.0f);
+
+                // Apply gradient effect
                 color.r = static_cast<Uint8>(color.r * gradientFactor);
                 color.g = static_cast<Uint8>(color.g * gradientFactor);
                 color.b = static_cast<Uint8>(std::min(255.0f, color.b * gradientFactor + 40));
@@ -156,9 +166,9 @@ void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
         }
     }
 
-    // Create texture and update it with the image buffer data
-    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, imageBuffer.getWidth(), imageBuffer.getHeight());
-    SDL_UpdateTexture(texture, NULL, imageBuffer.getBufferData(), imageBuffer.getWidth() * sizeof(Pixel));
+    // Optimization: Use streaming texture update for faster rendering
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+    SDL_UpdateTexture(texture, NULL, imageBuffer.getBufferData(), SCREEN_WIDTH * sizeof(Pixel));
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_DestroyTexture(texture);
 }
