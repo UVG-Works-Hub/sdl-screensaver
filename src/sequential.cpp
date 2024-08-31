@@ -7,31 +7,20 @@ float mapValue(float value, float fromLow, float fromHigh, float toLow, float to
     return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
 }
 
-SDL_Color getColor(int iteration, int max_iteration) {
-    if (iteration == max_iteration) return {0, 0, 0, 255};
+SDL_Color getColor(float iteration, int max_iteration) {
+    if (iteration >= max_iteration) return {0, 0, 0, 255};  // Black for points inside the set
 
-    float hue = 360.0f * iteration / max_iteration;
-    float saturation = 1.0f;
-    float value = 1.0f;
+    // Smooth coloring
+    float smoothed = iteration + 1 - log(log(2.0f)) / log(2.0f);
+    smoothed = smoothed / max_iteration;
 
-    float c = value * saturation;
-    float x = c * (1 - std::abs(std::fmod(hue / 60.0f, 2.0f) - 1));
-    float m = value - c;
+    // Create an electric blue to white gradient
+    float t = pow(smoothed, 0.5);
+    Uint8 r = static_cast<Uint8>(9 * (1-t) * t * t * t * 255);
+    Uint8 g = static_cast<Uint8>(15 * (1-t) * (1-t) * t * t * 255);
+    Uint8 b = static_cast<Uint8>(8.5 * (1-t) * (1-t) * (1-t) * t * 255);
 
-    float r, g, b;
-    if (hue < 60) { r = c; g = x; b = 0; }
-    else if (hue < 120) { r = x; g = c; b = 0; }
-    else if (hue < 180) { r = 0; g = c; b = x; }
-    else if (hue < 240) { r = 0; g = x; b = c; }
-    else if (hue < 300) { r = x; g = 0; b = c; }
-    else { r = c; g = 0; b = x; }
-
-    return {
-        static_cast<Uint8>((r + m) * 255),
-        static_cast<Uint8>((g + m) * 255),
-        static_cast<Uint8>((b + m) * 255),
-        255
-    };
+    return {r, g, b, 255};
 }
 
 // Based on pseudocode from Wikipedia.
@@ -49,23 +38,35 @@ void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGH
 
     for (int px = 0; px < SCREEN_WIDTH; px++) {
         for (int py = 0; py < SCREEN_HEIGHT; py++) {
-            // We map each pixel value to the Mandelbrot bounds
             float x0 = mapValue(px, 0, SCREEN_WIDTH - 1, minReal, maxReal);
             float y0 = mapValue(py, 0, SCREEN_HEIGHT - 1, minImaginary, maxImaginary);
             float x = 0.0f;
             float y = 0.0f;
-            int iteration = 0;
+            float iteration = 0.0f;
+            float zn2 = 0.0f;
 
-            // We see its behaviour after many iterations
-            while (x*x + y*y <= 4 && iteration < maxIterations) {
+            while (zn2 <= 4 && iteration < maxIterations) {
                 float xtemp = x*x - y*y + x0;
                 y = 2*x*y + y0;
                 x = xtemp;
-                iteration++;
+                zn2 = x*x + y*y;
+                iteration += 1.0f;
             }
 
-            // Based on the results, we set a color
+            if (iteration < maxIterations) {
+                // Smooth iteration count
+                iteration = iteration + 1 - log(log(sqrt(zn2))) / log(2.0);
+            }
+
             SDL_Color color = getColor(iteration, maxIterations);
+
+            // Add background gradient
+            float distanceFromCenter = sqrt((x0 - centerX) * (x0 - centerX) + (y0 - centerY) * (y0 - centerY));
+            float gradientFactor = 1.0f - std::min(distanceFromCenter / (rangeX / 2), 1.0f);
+            color.r = static_cast<Uint8>(color.r * gradientFactor);
+            color.g = static_cast<Uint8>(color.g * gradientFactor);
+            color.b = static_cast<Uint8>(std::min(255.0f, color.b * gradientFactor + 40));
+
             SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
             SDL_RenderDrawPoint(renderer, px, py);
         }
@@ -83,9 +84,9 @@ int main(int argc, char* argv[]) {
                                           SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    float centerX = -0.5f;
+    float centerX = -0.67f;
     float centerY = 0.0f;
-    float zoom = 1.0f;
+    float zoom = 1.74f;
     float zoomSpeed = 1.01f;
     float moveSpeed = 0.1f;
     int maxIterations = 1000;
@@ -148,7 +149,7 @@ int main(int argc, char* argv[]) {
             lastTime = currentTime;
 
             // Update the window title with FPS
-            std::string windowTitle = "Mandelbrot Zoom - FPS: " + std::to_string(fps);
+            std::string windowTitle = "fps: " + std::to_string(fps) + " - z: " + std::to_string(zoom) + " - y: " + std::to_string(centerY) + " - x: " + std::to_string(centerX) + " - mi: " + std::to_string(maxIterations);
             SDL_SetWindowTitle(window, windowTitle.c_str());
         }
     }

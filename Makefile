@@ -11,8 +11,8 @@ SEQUENTIAL_SRC := $(SRC_DIR)/sequential.cpp
 PARALLEL_SRC := $(SRC_DIR)/parallel.cpp
 
 # Executables
-SEQUENTIAL_EXEC := $(BIN_DIR)/mandelbrot_sequential
-PARALLEL_EXEC := $(BIN_DIR)/mandelbrot_parallel
+SEQUENTIAL_EXEC := $(BIN_DIR)/sequential
+PARALLEL_EXEC := $(BIN_DIR)/parallel
 
 # Default target
 all: $(SEQUENTIAL_EXEC) $(PARALLEL_EXEC)
