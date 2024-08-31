@@ -1,5 +1,7 @@
 #include <SDL2/SDL.h>
 #include <cmath>
+#include <string>
+#include <chrono>
 
 float mapValue(float value, float fromLow, float fromHigh, float toLow, float toHigh) {
     return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
@@ -33,18 +35,18 @@ SDL_Color getColor(int iteration, int max_iteration) {
 }
 
 // Based on pseudocode from Wikipedia.
-// Reference: https://en.wikipedia.org/wiki/Mandelbrot_set#:~:text=The%20Mandelbrot%20set%20(%2F%CB%88m,aesthetic%20appeal%20and%20fractal%20structures.
-void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGHT, 
+// Reference: https://en.wikipedia.org/wiki/Mandelbrot_set
+void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGHT,
                       float centerX, float centerY, float zoom) {
     float aspectRatio = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
     float rangeY = 4.0f / zoom;
     float rangeX = rangeY * aspectRatio;
-    
+
     float minReal = centerX - rangeX / 2;
     float maxReal = centerX + rangeX / 2;
     float minImaginary = centerY - rangeY / 2;
     float maxImaginary = centerY + rangeY / 2;
-    
+
     int maxIterations = 1000;
 
     for (int px = 0; px < SCREEN_WIDTH; px++) {
@@ -74,44 +76,63 @@ void renderMandelbrot(SDL_Renderer* renderer, int SCREEN_WIDTH, int SCREEN_HEIGH
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
-    
+
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
-    
-    SDL_Window* window = SDL_CreateWindow("Mandelbrot Zoom", SDL_WINDOWPOS_UNDEFINED, 
-                                          SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, 
+
+    SDL_Window* window = SDL_CreateWindow("Mandelbrot Zoom", SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
                                           SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    
+
     float centerX = -0.5f;
     float centerY = 0.0f;
     float zoom = 1.0f;
     float zoomSpeed = 1.01f;
-    
+
     bool quit = false;
     SDL_Event e;
-    
+
+    auto lastTime = std::chrono::high_resolution_clock::now();
+    int frameCount = 0;
+
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             }
         }
-        
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
-        
+
         renderMandelbrot(renderer, SCREEN_WIDTH, SCREEN_HEIGHT, centerX, centerY, zoom);
-        
+
         SDL_RenderPresent(renderer);
-        
+
         zoom *= zoomSpeed;
+
+        // Calculate FPS
+        frameCount++;
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> elapsedTime = currentTime - lastTime;
+
+        if (elapsedTime.count() >= 1.0f) {
+            float fps = frameCount / elapsedTime.count();
+            frameCount = 0;
+            lastTime = currentTime;
+
+            // Update the window title with FPS
+            std::string windowTitle = "Mandelbrot Zoom - FPS: " + std::to_string(fps);
+            SDL_SetWindowTitle(window, windowTitle.c_str());
+        }
+
         SDL_Delay(16);  // Cap at roughly 60 FPS
     }
-    
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    
+
     return 0;
 }
