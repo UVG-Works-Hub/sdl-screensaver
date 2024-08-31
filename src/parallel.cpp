@@ -174,6 +174,7 @@ void renderMandelbrot(SDL_Renderer* renderer, ImageBuffer& imageBuffer,
 }
 
 int main() {
+    // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO);
 
     const int SCREEN_WIDTH = 800;
@@ -184,6 +185,7 @@ int main() {
                                           SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+    // Mandelbrot set parameters
     float centerX = -0.67f;
     float centerY = 0.0f;
     float zoom = 1.74f;
@@ -191,11 +193,27 @@ int main() {
     float moveSpeed = 0.1f;
     int maxIterations = 1000;
 
-    bool quit = false;
-    SDL_Event e;
+    // OpenMP setup
+    int numThreads = omp_get_max_threads();
+    omp_set_num_threads(numThreads);
 
+    // Create multiple image buffers for double buffering
+    const int NUM_BUFFERS = 2;
+    std::vector<ImageBuffer> imageBuffers;
+    for (int i = 0; i < NUM_BUFFERS; ++i) {
+        imageBuffers.emplace_back(SCREEN_WIDTH, SCREEN_HEIGHT);
+    }
+
+    // Variables for FPS calculation
     auto lastTime = std::chrono::high_resolution_clock::now();
     int frameCount = 0;
+    float fps = 0.0f;
+
+    // Main loop variables
+    bool quit = false;
+    SDL_Event e;
+    int currentBuffer = 0;
+    bool bufferReady = false;
 
     int numThreads = omp_get_max_threads();
     omp_set_num_threads(numThreads);
