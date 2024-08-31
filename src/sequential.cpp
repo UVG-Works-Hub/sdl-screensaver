@@ -151,8 +151,6 @@ int main(int argc, char* argv[]) {
             std::string windowTitle = "Mandelbrot Zoom - FPS: " + std::to_string(fps);
             SDL_SetWindowTitle(window, windowTitle.c_str());
         }
-
-        SDL_Delay(16);  // Cap at roughly 60 FPS
     }
 
     SDL_DestroyRenderer(renderer);

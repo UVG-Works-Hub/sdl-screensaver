@@ -6,14 +6,26 @@ LDFLAGS := -lSDL2 -lm -fopenmp
 SRC_DIR := src
 BIN_DIR := bin
 
-# Source and executable
-SRC := $(SRC_DIR)/main.cpp
-EXEC := $(BIN_DIR)/screensaver
+# Source files
+SEQUENTIAL_SRC := $(SRC_DIR)/sequential.cpp
+PARALLEL_SRC := $(SRC_DIR)/parallel.cpp
 
-# Targets
-all: $(EXEC)
+# Executables
+SEQUENTIAL_EXEC := $(BIN_DIR)/mandelbrot_sequential
+PARALLEL_EXEC := $(BIN_DIR)/mandelbrot_parallel
 
-$(EXEC): $(SRC) | $(BIN_DIR)
+# Default target
+all: $(SEQUENTIAL_EXEC) $(PARALLEL_EXEC)
+
+# Targets for individual executables
+sequential: $(SEQUENTIAL_EXEC)
+
+parallel: $(PARALLEL_EXEC)
+
+$(SEQUENTIAL_EXEC): $(SEQUENTIAL_SRC) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
+
+$(PARALLEL_EXEC): $(PARALLEL_SRC) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 $(BIN_DIR):
@@ -22,4 +34,4 @@ $(BIN_DIR):
 clean:
 	rm -rf $(BIN_DIR)
 
-.PHONY: all clean
+.PHONY: all sequential parallel clean
