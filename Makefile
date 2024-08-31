@@ -1,9 +1,14 @@
 CXX := g++
-COMMON_FLAGS := -Wall -Wextra -std=c++11 -O3
-SEQUENTIAL_FLAGS := $(COMMON_FLAGS) -g
-PARALLEL_FLAGS := $(COMMON_FLAGS) -g -fopenmp
+COMMON_FLAGS := -Wall -Wextra -std=c++11
+OPTIMIZATION_FLAGS := -O3 -march=native -mtune=native -ffast-math -funroll-loops
+DEBUG_FLAGS := -g
+OPENMP_FLAGS := -fopenmp
+
+SEQUENTIAL_FLAGS := $(COMMON_FLAGS) $(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS)
+PARALLEL_FLAGS := $(COMMON_FLAGS) $(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) $(OPENMP_FLAGS)
+
 SEQUENTIAL_LDFLAGS := -lSDL2 -lm
-PARALLEL_LDFLAGS := -lSDL2 -lm -fopenmp
+PARALLEL_LDFLAGS := -lSDL2 -lm $(OPENMP_FLAGS)
 
 # Directories
 SRC_DIR := src
