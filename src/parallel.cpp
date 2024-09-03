@@ -102,8 +102,8 @@ std::pair<float, float> calculateComplexConstant(float t, float cycleLength)
     // Map t to [0, 2π]
     float angle = (t / cycleLength) * 2 * M_PI;
 
-    float cr = 0.7885f * std::cos(angle * 2.0f);
-    float ci = 0.7885f * std::sin(angle * 1.5f); // Using 1.5 here creates a more interesting pattern
+    float cr = 0.7885f * std::cos(angle );
+    float ci = 0.7885f * std::sin(angle ); 
     return {cr, ci};
 }
 
