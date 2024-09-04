@@ -1,2 +1,3 @@
 bin/sequential
 bin/parallel
+bin/parallel_tests

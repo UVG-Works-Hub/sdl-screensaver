@@ -1,8 +1,8 @@
 /*
     Julia-Mandelbrot Screensaver Program
-    File Name: julia_mandelbrot_screensaver.cpp
-    Authors: Jose Daniel Gómez Cabrera,
-    Date: September 3, 2024
+    File Name: parallel.cpp
+    Authors: Jose Gómez, Adrian Rodriguez, Samuel Chamalé
+    Date: September 4, 2024
 
     Description:
     This program renders a Julia-Mandelbrot fractal in real-time using SDL2 for graphics and
