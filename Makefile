@@ -18,14 +18,16 @@ BIN_DIR := bin
 SEQUENTIAL_SRC := $(SRC_DIR)/sequential.cpp
 PARALLEL_SRC := $(SRC_DIR)/parallel.cpp
 PARALLEL_TESTS_SRC := $(SRC_DIR)/parallel_tests.cpp
+SEQUENTIAL_TESTS_SRC := $(SRC_DIR)/sequential_tests.cpp
 
 # Executables
 SEQUENTIAL_EXEC := $(BIN_DIR)/sequential
 PARALLEL_EXEC := $(BIN_DIR)/parallel
 PARALLEL_TESTS_EXEC := $(BIN_DIR)/parallel_tests
+SEQUENTIAL_TESTS_EXEC := $(BIN_DIR)/sequential_tests
 
 # Default target
-all: $(SEQUENTIAL_EXEC) $(PARALLEL_EXEC) $(PARALLEL_TESTS_EXEC)
+all: $(SEQUENTIAL_EXEC) $(PARALLEL_EXEC) $(PARALLEL_TESTS_EXEC) $(SEQUENTIAL_TESTS_EXEC)
 
 # Targets for individual executables
 sequential: $(SEQUENTIAL_EXEC)
@@ -33,6 +35,8 @@ sequential: $(SEQUENTIAL_EXEC)
 parallel: $(PARALLEL_EXEC)
 
 parallel_tests: $(PARALLEL_TESTS_EXEC)
+
+sequential_tests: $(SEQUENTIAL_TESTS_EXEC)
 
 $(SEQUENTIAL_EXEC): $(SEQUENTIAL_SRC) | $(BIN_DIR)
 	$(CXX) $(SEQUENTIAL_FLAGS) $< -o $@ $(SEQUENTIAL_LDFLAGS)
@@ -43,10 +47,13 @@ $(PARALLEL_EXEC): $(PARALLEL_SRC) | $(BIN_DIR)
 $(PARALLEL_TESTS_EXEC): $(PARALLEL_TESTS_SRC) | $(BIN_DIR)
 	$(CXX) $(PARALLEL_FLAGS) $< -o $@ $(PARALLEL_LDFLAGS)
 
+$(SEQUENTIAL_TESTS_EXEC): $(SEQUENTIAL_TESTS_SRC) | $(BIN_DIR)
+	$(CXX) $(SEQUENTIAL_FLAGS) $< -o $@ $(SEQUENTIAL_LDFLAGS)
+
 $(BIN_DIR):
 	mkdir -p $@
 
 clean:
 	rm -rf $(BIN_DIR)
 
-.PHONY: all sequential parallel parallel_tests clean
+.PHONY: all sequential parallel parallel_tests sequential_tests clean
