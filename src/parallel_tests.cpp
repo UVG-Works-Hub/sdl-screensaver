@@ -241,12 +241,12 @@ void runTests(SDL_Renderer *renderer, ImageBuffer &imageBuffer, int screenWidth,
 
             double totalFPS = 0.0;
             double totalRenderTime = 0.0;
-            int measurementCount = 0;
+            int measurementCount = 7;
 
-            while (measurementCount < 10) {
+            while (measurementCount < 17) {
                 auto frameStart = std::chrono::high_resolution_clock::now();
 
-                double time = static_cast<double>(measurementCount) * 2;
+                double time = static_cast<double>(measurementCount);
                 renderJuliaMandelbrot(renderer, imageBuffer, centerX, centerY, zoom, maxIterations,
                                       screenWidth, screenHeight, time, cycleLength);
                 SDL_RenderPresent(renderer);
