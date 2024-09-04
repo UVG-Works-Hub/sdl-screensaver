@@ -2,3 +2,5 @@ bin/sequential
 bin/parallel
 bin/parallel_tests
 bin/sequential_tests
+
+.vscode/

@@ -1,0 +1,29 @@
+Julia-Mandelbrot Screensaver Performance Analysis
+================================================
+
+Overall Statistics:
+------------------
+Average Speedup: 3.26
+Maximum Speedup: 8.31
+Average Efficiency: 0.20
+Maximum Efficiency: 0.52
+Best Cases:
+----------
+Best Speedup:
+  Zoom MaxIterations Speedup
+1    4          1600 8.30648
+
+Best Efficiency:
+  Zoom MaxIterations Efficiency
+1    4          1600   0.519155
+
+Worst Cases:
+------------
+Worst Speedup:
+  Zoom MaxIterations    Speedup
+1    1           200 0.06801937
+
+Worst Efficiency:
+  Zoom MaxIterations  Efficiency
+1    1           200 0.004251211
+

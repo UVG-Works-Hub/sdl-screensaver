@@ -84,7 +84,7 @@ To run performance comparisons between the sequential and parallel versions, use
 Rscript compare.r
 ```
 
-This will generate comparison graphs showing the performance differences between the two implementations.
+This will generate comparison graphs and other metrics showing the performance differences between the two implementations.
 
 ## Controls
 
