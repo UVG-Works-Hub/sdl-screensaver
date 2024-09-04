@@ -98,6 +98,13 @@ This will generate comparison graphs and other metrics showing the performance d
 - F11: Toggle fullscreen mode
 - F12: Toggle borderless window mode
 
+## Gallery
+
+![image](https://github.com/user-attachments/assets/d3538d50-331e-45ee-9593-46ae451dd665)
+![image](https://github.com/user-attachments/assets/ec462740-4ddb-4a0c-9533-ac12a76c8c86)
+![image](https://github.com/user-attachments/assets/a4857399-bff2-4dd3-8634-96c027f2f1bf)
+![image](https://github.com/user-attachments/assets/25da069e-175a-4b89-b4d3-58f35abbc380)
+
 ## License
 
 This project is licensed under the MIT License.
