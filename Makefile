@@ -1,5 +1,5 @@
 CXX := g++
-COMMON_FLAGS := -Wall -Wextra -std=c++14
+COMMON_FLAGS := -Wall -Wextra -std=c++17
 OPTIMIZATION_FLAGS := -O3 -march=native -mtune=native -ffast-math -funroll-loops
 DEBUG_FLAGS := -g
 OPENMP_FLAGS := -fopenmp
