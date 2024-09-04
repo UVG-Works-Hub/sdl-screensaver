@@ -102,8 +102,8 @@ This will generate comparison graphs and other metrics showing the performance d
 
 ![image](https://github.com/user-attachments/assets/d3538d50-331e-45ee-9593-46ae451dd665)
 ![image](https://github.com/user-attachments/assets/ec462740-4ddb-4a0c-9533-ac12a76c8c86)
-![image](https://github.com/user-attachments/assets/a4857399-bff2-4dd3-8634-96c027f2f1bf)
-![image](https://github.com/user-attachments/assets/25da069e-175a-4b89-b4d3-58f35abbc380)
+![image](https://github.com/user-attachments/assets/e5d6b396-0695-445e-a9f8-aaafef559531)
+![image](https://github.com/user-attachments/assets/084cd6a2-9dda-434c-9189-2ab6e871e9ca)
 
 ## License
 
