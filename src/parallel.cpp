@@ -43,7 +43,6 @@
 #include <string>
 #include <chrono>
 #include <omp.h>
-#include <vector>
 #include <memory>
 #include <immintrin.h>
 #include <random>
@@ -229,6 +228,7 @@ int main(int argc, char* argv[]) {
     // Parse command line arguments
     for (int i = 1; i < argc; i += 2) {
         if (i + 1 < argc) {
+            try {
             std::string arg = argv[i];
             if (arg == "-w" || arg == "--width") screenWidth = std::stoi(argv[i+1]);
             else if (arg == "-h" || arg == "--height") screenHeight = std::stoi(argv[i+1]);
@@ -243,6 +243,10 @@ int main(int argc, char* argv[]) {
             else if (arg == "-t" || arg == "--threads") numThreads = std::stoi(argv[i+1]);
             else if (arg == "-fs" || arg == "--fullscreen") fullscreen = std::stoi(argv[i+1]) != 0;
             else if (arg == "-bw" || arg == "--borderless") borderless = std::stoi(argv[i+1]) != 0;
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing argument: " << argv[i] << std::endl;
+                return 1;
+            }
         }
     }
 
